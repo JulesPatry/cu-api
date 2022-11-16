@@ -1,20 +1,22 @@
-const express = require('express');
-const http = require('http');
+const app = require('express')();
+const http = require('http').Server(app);
+const io = require('socket.io')(http, {
+  cors: {
+    origin: '*',
+  },
+});
+const port = process.env.PORT || 3001;
 
-const app = express();
-const _http = http.Server(app);
-// const server = http.createServer(app);
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/index.html');
+});
 
-// server.listen('3001', () => {
-//   const msg = `v${packageJson.version} Server running in "${FP_ENVIRONMENT}" at: http://${HTTP_HOST}:${port}`;
-//   slackMessage({ channel: CHANNELS.deployment, message: msg, logger, alert: true });
-// });
-
-const io = require('socket.io')(_http, { cors: { origin: '*' } });
 io.on('connection', (socket) => {
-  console.log('hit');
-  socket.emit('hello', 'world');
-  socket.on('hello2', (arg) => {
-    console.log('arg', arg);
+  socket.on('chat message', (msg) => {
+    io.emit('chat message', msg);
   });
+});
+
+http.listen(port, () => {
+  console.log(`Socket.IO server running at http://localhost:${port}/`);
 });
