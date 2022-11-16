@@ -23,14 +23,7 @@ import { HTTP_HOST, HTTP_PORT, FP_ENVIRONMENT } from 'src/config';
 
 // Initialize routes
 import initAPI from 'src/api/initialize';
-
-const awsDev =
-  FP_ENVIRONMENT === 'local'
-    ? {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-      }
-    : {};
+import initReads from 'src/reads/initialize';
 
 const defaultOrigin = [
   'http://localhost:3000',
@@ -43,6 +36,11 @@ const productionOrigin = ['https://finishprobation.com'];
 async function main() {
   const app = express() as Application;
   const port = HTTP_PORT;
+  const io = require('socket.io')(http, {
+    cors: {
+      origin: '*',
+    },
+  });
 
   /**
    * Before handlers
@@ -65,12 +63,16 @@ async function main() {
   /**
    * Handler Dependencies
    */
-  const handlerDependencies = {} as any;
+  const handlerDependencies = {
+    io,
+    app,
+  } as any;
 
   /**
    * Create handlers and initialize routes
    */
-  initAPI(handlerDependencies, app);
+  initAPI(handlerDependencies);
+  initReads(handlerDependencies);
 
   /**
    * Post Handlers
@@ -118,6 +120,7 @@ async function main() {
 
   server.listen(port, () => {
     const msg = `v${packageJson.version} Server running in "${FP_ENVIRONMENT}" at: http://${HTTP_HOST}:${port}`;
+    console.log(msg);
     // slackMessage({ channel: CHANNELS.deployment, message: msg, logger, alert: true });
   });
 }
