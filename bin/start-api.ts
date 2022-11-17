@@ -20,26 +20,37 @@ import compression from 'compression';
 import helmet from 'helmet';
 import _get from 'lodash/get';
 import { HTTP_HOST, HTTP_PORT, FP_ENVIRONMENT } from 'src/config';
+import { Server } from 'socket.io';
 
 // Initialize routes
 import initAPI from 'src/api/initialize';
 import initReads from 'src/reads/initialize';
 
-const defaultOrigin = [
-  'http://localhost:3000',
-  'http://localhost:8081',
-  'https://dev.finishprobation.com',
-  'https://finishprobation.com',
-];
+const defaultOrigin = ['http://localhost:3000', 'https://dev.finishprobation.com', 'https://finishprobation.com'];
 const productionOrigin = ['https://finishprobation.com'];
 
 async function main() {
   const app = express() as Application;
-  const port = HTTP_PORT;
-  const io = require('socket.io')(http, {
+  const server = http.createServer(app);
+
+  server.listen(HTTP_PORT, () => {
+    const msg = `v${packageJson.version} Server running in "${FP_ENVIRONMENT}" at: http://${HTTP_HOST}:${HTTP_PORT}`;
+    console.log(msg);
+  });
+
+  const io = new Server(server, {
     cors: {
       origin: '*',
     },
+  });
+
+  io.on('connection', (socket: any) => {
+    socket.on('event', (data: any) => {
+      console.log('data', data);
+    });
+    socket.on('disconnect', (data: any) => {
+      console.log('disconnect', data);
+    });
   });
 
   /**
@@ -72,7 +83,7 @@ async function main() {
    * Create handlers and initialize routes
    */
   initAPI(handlerDependencies);
-  initReads(handlerDependencies);
+  // initReads(handlerDependencies);
 
   /**
    * Post Handlers
@@ -100,7 +111,6 @@ async function main() {
   /**
    * 👂🏻👂🏻👂🏻 Listen 👂🏻👂🏻👂🏻
    */
-  const server = http.createServer(app);
 
   async function onSignal() {
     // logger.info(`server is starting cleanup`);
@@ -117,16 +127,9 @@ async function main() {
     healthChecks: { '/health': onHealthCheck },
     onSignal,
   });
-
-  server.listen(port, () => {
-    const msg = `v${packageJson.version} Server running in "${FP_ENVIRONMENT}" at: http://${HTTP_HOST}:${port}`;
-    console.log(msg);
-    // slackMessage({ channel: CHANNELS.deployment, message: msg, logger, alert: true });
-  });
 }
 
 main().catch((err) => {
   console.error(err);
-  // slackMessage({ channel: CHANNELS.errors, message: err, alert: true });
   process.exit(1);
 });
